@@ -140,8 +140,14 @@ def run_clustering(
         sc.tl.leiden(adata, resolution=resolution, flavor="igraph", n_iterations=2)
         cluster_key = "leiden"
     elif method.lower() == "louvain":
-        sc.tl.louvain(adata, resolution=resolution)
-        cluster_key = "louvain"
+        try:
+            import louvain as _louvain_check  # noqa: F401
+            sc.tl.louvain(adata, resolution=resolution)
+            cluster_key = "louvain"
+        except ImportError:
+            logger.warning("louvain包未安装，自动降级为Leiden聚类")
+            sc.tl.leiden(adata, resolution=resolution, flavor="igraph", n_iterations=2)
+            cluster_key = "leiden"
     else:
         raise ValueError(f"不支持的聚类方法: {method}")
 

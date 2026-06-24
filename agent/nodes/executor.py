@@ -18,6 +18,7 @@ from agent.tools import (
     find_markers,
     generate_spatial_plots,
     get_analysis_summary,
+    annotate_cell_types,
     # 引擎层函数（供lambda直接调用，避免StructuredTool问题）
     find_marker_genes,
     get_top_markers,
@@ -54,6 +55,9 @@ TOOL_MAP: Dict[str, Callable] = {
     "find_markers": find_markers,
     "get_markers": find_markers,
     "plot_markers": find_markers,
+    "annotate_cell_types": annotate_cell_types,
+    "plot_cell_type_composition": annotate_cell_types,
+    "plot_cell_type_umap": annotate_cell_types,
     "get_analysis_summary": get_analysis_summary,
 }
 

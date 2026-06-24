@@ -39,6 +39,14 @@ from .marker import (
     plot_marker_dotplot,
     get_top_markers,
 )
+from .cell_type import (
+    annotate_cell_types,
+    annotate_cell_types_celltypist,
+    annotate_cell_types_rule_based,
+    plot_cell_type_composition,
+    plot_cell_type_umap,
+    run_cell_type_annotation,
+)
 
 __all__ = [
     # Utils
@@ -76,4 +84,11 @@ __all__ = [
     "plot_marker_heatmap",
     "plot_marker_dotplot",
     "get_top_markers",
+    # Cell Type Annotation
+    "annotate_cell_types",
+    "annotate_cell_types_celltypist",
+    "annotate_cell_types_rule_based",
+    "plot_cell_type_composition",
+    "plot_cell_type_umap",
+    "run_cell_type_annotation",
 ]

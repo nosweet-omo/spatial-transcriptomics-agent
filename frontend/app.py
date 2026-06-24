@@ -79,6 +79,10 @@ def run_analysis(user_input: str, file_path: str, params: dict, skill_name: str 
         },
         "generate_spatial_plots": {
             "use_3d": params.get("use_3d", True),
+        },
+        "annotate_cell_types": {
+            "method": params.get("cell_type_method", "auto"),
+            "model_name": params.get("cell_type_model", "Immune_All_Low"),
         }
     }
 

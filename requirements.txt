@@ -8,6 +8,7 @@ anndata>=0.8.0
 scipy>=1.10.0
 numpy>=1.24.0
 pandas>=2.0.0
+celltypist>=1.6.0
 
 # AI Agent Framework
 langgraph>=0.0.20

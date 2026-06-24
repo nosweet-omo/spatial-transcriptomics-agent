@@ -83,9 +83,17 @@ BASIC_ANALYSIS_WORKFLOW = Skill(
             params={"use_3d": True},
             required=True
         ),
+        SkillStep(
+            name="cell_type_annotation",
+            tool_name="annotate_cell_types",
+            description="细胞类型自动注释",
+            params={"method": "auto"},
+            required=False,
+            skip_on_error=True
+        ),
     ],
     prerequisites=[],
-    output_description="完整的分析结果，包括QC报告、聚类结果、Marker基因列表和空间可视化图表"
+    output_description="完整的分析结果，包括QC报告、聚类结果、Marker基因列表、空间可视化图表和细胞类型注释"
 )
 
 # 2. 质量控制分析Skill
@@ -257,6 +265,23 @@ QUICK_PREVIEW_SKILL = Skill(
     output_description="数据概览和基本QC结果"
 )
 
+# 7. 细胞类型注释Skill
+CELL_TYPE_ANNOTATION_SKILL = Skill(
+    name="cell_type_annotation_skill",
+    description="对聚类结果进行自动细胞类型注释",
+    steps=[
+        SkillStep(
+            name="annotate_cell_types",
+            tool_name="annotate_cell_types",
+            description="使用CellTypist或规则方法进行细胞类型注释",
+            params={"method": "auto"},
+            required=True
+        ),
+    ],
+    prerequisites=["clustering"],
+    output_description="细胞类型注释结果，包括各cluster的细胞类型标签和组成图表"
+)
+
 
 # ============ Skill注册表 ============
 
@@ -267,6 +292,7 @@ SKILL_REGISTRY: Dict[str, Skill] = {
     "cluster_annotation": CLUSTER_ANNOTATION_SKILL,
     "dimensionality_reduction": DIMENSIONALITY_REDUCTION_SKILL,
     "quick_preview": QUICK_PREVIEW_SKILL,
+    "cell_type_annotation": CELL_TYPE_ANNOTATION_SKILL,
 }
 
 
@@ -375,6 +401,9 @@ def parse_skill_from_natural_language(user_input: str) -> Optional[str]:
 
     if any(kw in user_input_lower for kw in ["基因", "空间表达", "表达模式"]):
         return "gene_spatial"
+
+    if any(kw in user_input_lower for kw in ["细胞类型", "cell type", "celltypist", "类型注释", "类型鉴定"]):
+        return "cell_type_annotation"
 
     if any(kw in user_input_lower for kw in ["注释", "解释", "marker", "特征基因"]):
         return "cluster_annotation"

@@ -27,6 +27,7 @@ from engine import (
     plot_spatial_distribution,
     plot_cluster_spatial,
 )
+from engine.cell_type import run_cell_type_annotation
 from engine.clustering import compute_neighbors
 from frontend.utils import save_uploaded_file, get_file_size, validate_h5ad_file, list_h5ad_files
 from frontend.chat import explain_analysis, answer_question, create_chat_context
@@ -41,17 +42,7 @@ def main():
     )
 
     st.title("🧬 空间转录组智能分析平台")
-    st.markdown("""
-    基于Scanpy的空间转录组数据分析工具，支持完整的分析流程。
-
-    **功能特点**：
-    - 数据质量控制
-    - 数据预处理
-    - 降维聚类分析
-    - 空间可视化
-    - Marker基因分析
-    - 💬 LLM智能问答
-    """)
+    st.markdown("基于Scanpy的空间转录组数据分析工具，支持完整的分析流程。")
 
     # 初始化会话状态
     if "adata" not in st.session_state:
@@ -63,11 +54,10 @@ def main():
     if "analysis_result" not in st.session_state:
         st.session_state.analysis_result = None
 
-    # 侧边栏
+    # ============ 侧边栏 ============
     with st.sidebar:
         st.header("📁 数据上传")
 
-        # 文件上传
         uploaded_file = st.file_uploader(
             "上传h5ad格式的空间转录组数据",
             type=["h5ad", "h5"],
@@ -94,7 +84,6 @@ def main():
             else:
                 st.error(f"❌ 文件验证失败: {validation['error']}")
 
-        # 显示已上传的文件列表
         existing_files = list_h5ad_files()
         if existing_files:
             st.info("📁 已上传的文件:")
@@ -122,7 +111,24 @@ def main():
             st.metric("基因数", summary.get("n_genes", "N/A"))
             st.metric("空间坐标", "✅" if summary.get("has_spatial") else "❌")
 
-    # 主区域
+        # 高级参数（折叠面板，默认收起）
+        with st.expander("⚙️ 高级参数（可选）", expanded=False):
+            st.caption("以下参数已按经验设好默认值，通常无需修改。")
+
+            st.markdown("**质量控制**")
+            qc_min_genes = st.slider("每细胞最少基因数", 50, 500, 200, key="qc_min_genes")
+            qc_min_cells = st.slider("每基因最少细胞数", 1, 20, 3, key="qc_min_cells")
+            qc_max_mito = st.slider("最大线粒体比例(%)", 5, 50, 20, key="qc_max_mito")
+
+            st.markdown("**预处理**")
+            pp_n_hvg = st.slider("高变基因数量", 500, 5000, 2000, step=100, key="pp_n_hvg")
+            pp_n_pcs = st.slider("PCA主成分数", 10, 100, 50, step=5, key="pp_n_pcs")
+
+            st.markdown("**聚类**")
+            cl_method = st.selectbox("聚类方法", ["leiden", "louvain"], key="cl_method")
+            st.caption("leiden更常用；louvain需要额外安装包，不可用时自动降级为leiden")
+
+    # ============ 主区域 ============
     if st.session_state.adata is None:
         st.info("请在左侧边栏上传并加载数据文件")
         return
@@ -130,223 +136,281 @@ def main():
     adata = st.session_state.adata
 
     # 创建标签页
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "🔍 质量控制",
         "⚙️ 预处理",
         "📊 降维聚类",
         "🧬 Marker基因",
         "🗺️ 空间可视化",
+        "🏷️ 细胞注释",
         "💬 智能问答"
     ])
 
-    # 标签页1：质量控制
+    # ---- 标签页1：质量控制 ----
     with tab1:
         st.subheader("🔍 质量控制")
+        st.caption("过滤低质量细胞和基因，生成QC统计图表。使用侧边栏「高级参数」可调整过滤阈值。")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            min_genes = st.slider("每细胞最少基因数", 50, 500, 200)
-        with col2:
-            max_pct_mito = st.slider("最大线粒体基因比例(%)", 5, 50, 20)
-
-        if st.button("运行质量控制", key="run_qc"):
+        if st.button("▶️ 运行质量控制", key="run_qc", type="primary"):
             with st.spinner("正在进行质量控制..."):
                 try:
                     os.makedirs("storage/results/qc", exist_ok=True)
                     result = run_qc_pipeline(
                         adata,
-                        params={"min_genes": min_genes, "max_pct_mito": max_pct_mito},
+                        params={
+                            "min_genes": qc_min_genes,
+                            "min_cells": qc_min_cells,
+                            "max_pct_mito": qc_max_mito
+                        },
                         output_dir="storage/results/qc"
                     )
                     st.session_state.adata = result["adata"]
-                    st.success("✅ 质量控制完成！")
+                    st.success(f"✅ 质量控制完成！过滤前 {adata.shape[0]} 细胞 → 过滤后 {result['adata'].shape[0]} 细胞")
 
-                    # 显示图表
                     for plot_file in result.get("plot_files", []):
                         if os.path.exists(plot_file):
                             st.image(plot_file, caption=os.path.basename(plot_file))
 
-                    # 保存分析结果用于问答
                     st.session_state.analysis_result = {
                         "summary": f"质量控制完成。过滤前细胞数: {adata.shape[0]}，过滤后细胞数: {result['adata'].shape[0]}",
                         "plot_files": result.get("plot_files", [])
                     }
-
                 except Exception as e:
                     st.error(f"❌ 质量控制失败: {e}")
 
-    # 标签页2：预处理
+    # ---- 标签页2：预处理 ----
     with tab2:
         st.subheader("⚙️ 数据预处理")
+        st.caption("归一化、log转换、高变基因筛选、PCA降维。使用侧边栏「高级参数」可调整HVG数量和PCA主成分数。")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            n_top_genes = st.slider("高变基因数量", 500, 5000, 2000, step=100)
-        with col2:
-            n_pcs = st.slider("PCA主成分数量", 10, 100, 50, step=5)
-
-        if st.button("运行预处理", key="run_preprocessing"):
+        if st.button("▶️ 运行预处理", key="run_preprocessing", type="primary"):
             with st.spinner("正在进行预处理..."):
                 try:
                     result = run_preprocessing_pipeline(
                         adata,
-                        params={"n_top_genes": n_top_genes, "n_pcs": n_pcs}
+                        params={"n_top_genes": pp_n_hvg, "n_pcs": pp_n_pcs}
                     )
                     st.session_state.adata = result["adata"]
-                    st.success("✅ 预处理完成！")
-                    st.info(f"筛选出 {result['summary'].get('n_hvg', 'N/A')} 个高变基因")
+                    n_hvg = result['summary'].get('n_hvg', 'N/A')
+                    st.success(f"✅ 预处理完成！筛选出 {n_hvg} 个高变基因，使用 {pp_n_pcs} 个PCA主成分")
 
-                    # 保存分析结果
+                    for plot_file in result.get("plot_files", []):
+                        if os.path.exists(plot_file):
+                            st.image(plot_file, caption=os.path.basename(plot_file))
+
                     st.session_state.analysis_result = {
-                        "summary": f"预处理完成。筛选出 {result['summary'].get('n_hvg', 'N/A')} 个高变基因，使用 {n_pcs} 个PCA主成分。",
+                        "summary": f"预处理完成。筛选出 {n_hvg} 个高变基因，使用 {pp_n_pcs} 个PCA主成分。",
                         "plot_files": result.get("plot_files", [])
                     }
-
                 except Exception as e:
                     st.error(f"❌ 预处理失败: {e}")
 
-    # 标签页3：降维聚类
+    # ---- 标签页3：降维聚类 ----
     with tab3:
         st.subheader("📊 降维聚类分析")
+        st.caption("UMAP降维 + Leiden/Louvain聚类。聚类方法在侧边栏「高级参数」中设置。")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            cluster_method = st.selectbox("聚类方法", ["leiden", "louvain"])
-        with col2:
-            resolution = st.slider("聚类分辨率", 0.1, 3.0, 1.0, step=0.1)
+        resolution = st.slider(
+            "聚类分辨率",
+            0.1, 3.0, 1.0, step=0.1,
+            help="值越大，分出的cluster越多。建议从1.0开始，根据结果调整。"
+        )
 
-        if st.button("运行聚类", key="run_clustering"):
+        if st.button("▶️ 运行聚类", key="run_clustering", type="primary"):
             with st.spinner("正在进行降维聚类..."):
                 try:
-                    # 计算邻域图
                     adata = compute_neighbors(adata)
-
-                    # UMAP降维
                     adata = run_umap(adata)
+                    adata = run_clustering(adata, method=cl_method, resolution=resolution)
 
-                    # 聚类
-                    adata = run_clustering(adata, method=cluster_method, resolution=resolution)
+                    actual_key = cl_method
+                    if cl_method not in adata.obs.columns:
+                        for key in ["leiden", "louvain"]:
+                            if key in adata.obs.columns:
+                                actual_key = key
+                                break
 
                     st.session_state.adata = adata
-                    n_clusters = adata.obs[cluster_method].nunique()
-                    st.success("✅ 聚类完成！")
-                    st.info(f"识别出 {n_clusters} 个clusters")
+                    n_clusters = adata.obs[actual_key].nunique()
 
-                    # 生成图表
+                    if actual_key != cl_method:
+                        st.success(f"✅ 聚类完成！{cl_method}不可用，已降级为{actual_key}。识别出 {n_clusters} 个clusters")
+                    else:
+                        st.success(f"✅ 聚类完成！识别出 {n_clusters} 个clusters")
+
                     os.makedirs("storage/results/clustering", exist_ok=True)
-                    plot_files = generate_clustering_plots(adata, "storage/results/clustering", cluster_key=cluster_method)
+                    plot_files = generate_clustering_plots(adata, "storage/results/clustering", cluster_key=actual_key)
 
                     for plot_file in plot_files:
                         if os.path.exists(plot_file):
                             st.image(plot_file, caption=os.path.basename(plot_file))
 
-                    # 保存分析结果
                     st.session_state.analysis_result = {
-                        "summary": f"降维聚类完成。使用{cluster_method}方法，分辨率{resolution}，识别出 {n_clusters} 个clusters。",
+                        "summary": f"降维聚类完成。使用{actual_key}方法，分辨率{resolution}，识别出 {n_clusters} 个clusters。",
                         "plot_files": plot_files
                     }
-
                 except Exception as e:
                     st.error(f"❌ 聚类失败: {e}")
 
-    # 标签页4：Marker基因
+    # ---- 标签页4：Marker基因 ----
     with tab4:
         st.subheader("🧬 Marker基因分析")
+        st.caption("鉴定每个cluster的特征基因，用于细胞类型推断。")
 
-        if "leiden" not in adata.obs.columns and "louvain" not in adata.obs.columns:
-            st.warning("请先运行聚类分析")
+        actual_cluster_key = None
+        for key in ["leiden", "louvain"]:
+            if key in adata.obs.columns:
+                actual_cluster_key = key
+                break
+
+        if actual_cluster_key is None:
+            st.warning("⚠️ 请先运行聚类分析")
         else:
-            cluster_key = "leiden" if "leiden" in adata.obs.columns else "louvain"
-            n_markers = st.slider("Marker基因数量", 5, 50, 10)
+            n_markers = st.slider("展示Top Marker基因数", 5, 50, 10, key="n_markers_slider")
 
-            if st.button("查找Marker基因", key="find_markers"):
+            if st.button("▶️ 查找Marker基因", key="find_markers", type="primary"):
                 with st.spinner("正在查找Marker基因..."):
                     try:
-                        adata = find_marker_genes(adata, cluster_key=cluster_key, n_genes=n_markers * 10)
+                        adata = find_marker_genes(adata, cluster_key=actual_cluster_key, n_genes=n_markers * 10)
                         st.session_state.adata = adata
                         st.success("✅ Marker基因分析完成！")
 
-                        # 显示top markers
-                        top_markers = get_top_markers(adata, cluster_key=cluster_key, n=n_markers)
-                        st.write("**各Cluster的Top Marker基因：**")
+                        top_markers = get_top_markers(adata, cluster_key=actual_cluster_key, n=n_markers)
                         markers_summary = ""
                         for cluster, genes in top_markers.items():
                             st.write(f"**{cluster}**: {', '.join(genes[:10])}")
                             markers_summary += f"Cluster {cluster}: {', '.join(genes[:5])}\n"
 
-                        # 绘制图表
                         os.makedirs("storage/results/markers", exist_ok=True)
-                        plot_file = plot_marker_dotplot(adata, cluster_key=cluster_key, n_markers=n_markers, output_dir="storage/results/markers")
+                        plot_file = plot_marker_dotplot(adata, cluster_key=actual_cluster_key, n_markers=n_markers, output_dir="storage/results/markers")
 
                         if plot_file and os.path.exists(plot_file):
                             st.image(plot_file, caption="Marker基因点图")
 
-                        # 保存分析结果
                         st.session_state.analysis_result = {
                             "summary": f"Marker基因分析完成。\n{markers_summary}",
                             "plot_files": [plot_file] if plot_file else []
                         }
-
                     except Exception as e:
                         st.error(f"❌ Marker基因分析失败: {e}")
 
-    # 标签页5：空间可视化
+    # ---- 标签页5：空间可视化 ----
     with tab5:
         st.subheader("🗺️ 空间可视化")
+        st.caption("在组织空间坐标上展示细胞分布和cluster定位。")
 
-        use_3d = st.checkbox("使用3D可视化", value=True)
+        use_3d = st.checkbox("使用3D可视化", value=True, key="use_3d")
 
-        if st.button("生成空间分布图", key="plot_spatial"):
+        if st.button("▶️ 生成空间分布图", key="plot_spatial", type="primary"):
             with st.spinner("正在生成空间可视化..."):
                 try:
                     os.makedirs("storage/results/spatial", exist_ok=True)
                     plot_files = []
 
-                    # 空间分布图
                     plot_file = plot_spatial_distribution(adata, "storage/results/spatial", use_3d=use_3d)
                     if plot_file and os.path.exists(plot_file):
                         st.image(plot_file, caption="细胞空间分布图")
                         plot_files.append(plot_file)
 
-                    # Cluster空间图
-                    if "leiden" in adata.obs.columns or "louvain" in adata.obs.columns:
-                        cluster_key = "leiden" if "leiden" in adata.obs.columns else "louvain"
-                        plot_file = plot_cluster_spatial(adata, "storage/results/spatial", cluster_key=cluster_key, use_3d=use_3d)
+                    actual_cluster_key = None
+                    for key in ["leiden", "louvain"]:
+                        if key in adata.obs.columns:
+                            actual_cluster_key = key
+                            break
+
+                    if actual_cluster_key:
+                        plot_file = plot_cluster_spatial(adata, "storage/results/spatial", cluster_key=actual_cluster_key, use_3d=use_3d)
                         if plot_file and os.path.exists(plot_file):
                             st.image(plot_file, caption="Cluster空间分布图")
                             plot_files.append(plot_file)
 
-                    st.success("✅ 空间可视化完成！")
+                    st.success(f"✅ 空间可视化完成！生成了 {len(plot_files)} 个图表")
 
-                    # 保存分析结果
                     st.session_state.analysis_result = {
                         "summary": f"空间可视化完成。生成了 {len(plot_files)} 个空间分布图。",
                         "plot_files": plot_files
                     }
-
                 except Exception as e:
                     st.error(f"❌ 空间可视化失败: {e}")
 
-    # 标签页6：智能问答
+    # ---- 标签页6：细胞类型注释 ----
     with tab6:
+        st.subheader("🏷️ 细胞类型自动注释")
+        st.caption("基于CellTypist参考数据集或Marker基因规则，自动推断细胞类型。")
+
+        actual_cluster_key = None
+        for key in ["leiden", "louvain"]:
+            if key in adata.obs.columns:
+                actual_cluster_key = key
+                break
+
+        if actual_cluster_key is None:
+            st.warning("⚠️ 请先运行聚类分析")
+        else:
+            col1, col2 = st.columns(2)
+            with col1:
+                ct_method = st.selectbox(
+                    "注释方法",
+                    options=["auto", "celltypist", "rule"],
+                    index=0,
+                    help="auto: 优先CellTypist，降级为规则; rule: 仅规则注释"
+                )
+            with col2:
+                ct_model = st.selectbox(
+                    "CellTypist模型",
+                    options=["Immune_All_Low", "Immune_All_High", "Adult_Mouse_Brain"],
+                    index=0,
+                    help="选择参考数据集（仅celltypist方法有效）"
+                )
+
+            if st.button("▶️ 运行细胞类型注释", key="run_celltype", type="primary"):
+                with st.spinner("正在进行细胞类型注释..."):
+                    try:
+                        os.makedirs("storage/results/cell_type", exist_ok=True)
+                        result = run_cell_type_annotation(
+                            adata,
+                            method=ct_method,
+                            model_name=ct_model,
+                            output_dir="storage/results/cell_type"
+                        )
+                        st.session_state.adata = result["adata"]
+
+                        summary = result.get("summary", {})
+                        st.success(f"✅ 细胞类型注释完成！共识别 {summary.get('n_cell_types', 'N/A')} 种细胞类型（方法: {summary.get('method', 'N/A')}）")
+
+                        cluster_mapping = summary.get("cluster_mapping", {})
+                        if cluster_mapping:
+                            st.write("**Cluster → 细胞类型映射:**")
+                            for cluster, cell_type in cluster_mapping.items():
+                                st.write(f"  - Cluster {cluster}: **{cell_type}**")
+
+                        for plot_file in result.get("plot_files", []):
+                            if os.path.exists(plot_file):
+                                st.image(plot_file, caption=os.path.basename(plot_file))
+
+                        st.session_state.analysis_result = {
+                            "summary": f"细胞类型注释完成。方法: {summary.get('method', 'N/A')}，共 {summary.get('n_cell_types', 'N/A')} 种细胞类型。",
+                            "plot_files": result.get("plot_files", [])
+                        }
+                    except Exception as e:
+                        st.error(f"❌ 细胞类型注释失败: {e}")
+
+    # ---- 标签页7：智能问答 ----
+    with tab7:
         st.subheader("💬 智能问答")
         st.info("💡 基于LLM的智能问答，可以解释分析结果、回答关于数据的问题。")
 
-        # 显示对话历史
         if st.session_state.messages:
             for msg in st.session_state.messages:
                 with st.chat_message(msg["role"]):
                     st.markdown(msg["content"])
 
-        # 用户输入
         if prompt := st.chat_input("问我关于分析结果的问题..."):
-            # 添加用户消息
             st.session_state.messages.append({"role": "user", "content": prompt})
 
             with st.chat_message("user"):
                 st.markdown(prompt)
 
-            # 生成回答
             with st.chat_message("assistant"):
                 with st.spinner("思考中..."):
                     if st.session_state.analysis_result:
@@ -356,10 +420,8 @@ def main():
                         response = "⚠️ 请先运行一些分析，然后才能提问。"
                     st.markdown(response)
 
-            # 添加助手消息
             st.session_state.messages.append({"role": "assistant", "content": response})
 
-        # 快捷问题按钮
         st.subheader("📌 快捷问题")
         col1, col2, col3 = st.columns(3)
 

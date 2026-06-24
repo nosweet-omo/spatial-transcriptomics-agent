@@ -33,6 +33,7 @@ def render_page_header():
     - 自然语言输入，自动规划分析流程
     - 智能质量控制、预处理、聚类分析
     - 空间可视化和Marker基因分析
+    - 细胞类型自动注释（CellTypist / 规则降级）
     - 支持多种预定义分析流程（Skill）
     """)
 
@@ -157,6 +158,20 @@ def render_analysis_params() -> Dict[str, Any]:
             help="如果数据包含z坐标，启用3D可视化"
         )
 
+    with st.expander("细胞类型注释参数", expanded=False):
+        params["cell_type_method"] = st.selectbox(
+            "注释方法",
+            options=["auto", "celltypist", "rule"],
+            index=0,
+            help="auto: 优先CellTypist，降级为规则; celltypist: 强制CellTypist; rule: 仅规则注释"
+        )
+        params["cell_type_model"] = st.selectbox(
+            "CellTypist模型",
+            options=["Immune_All_Low", "Immune_All_High", "Adult_Mouse_Brain"],
+            index=0,
+            help="选择CellTypist预训练模型（仅celltypist方法有效）"
+        )
+
     return params
 
 
@@ -199,7 +214,7 @@ def render_natural_language_input() -> str:
 
     # 快捷命令
     st.info("💡 快捷命令:")
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
 
     quick_commands = []
     with col1:
@@ -211,6 +226,9 @@ def render_natural_language_input() -> str:
     with col3:
         if st.button("🧬 Marker基因", key="cmd_marker"):
             quick_commands.append("分析Marker基因")
+    with col4:
+        if st.button("🏷️ 细胞注释", key="cmd_celltype"):
+            quick_commands.append("进行细胞类型注释")
 
     # 自然语言输入
     user_input = st.text_area(

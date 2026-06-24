@@ -45,6 +45,8 @@ from engine import (
     get_top_markers,
     plot_marker_heatmap,
     plot_marker_dotplot,
+    # 细胞类型注释
+    run_cell_type_annotation as run_cell_type_annotation_engine,
 )
 
 logger = logging.getLogger(__name__)
@@ -729,7 +731,56 @@ def plot_markers(
         return json.dumps({"status": "error", "error": str(e)}, ensure_ascii=False)
 
 
-# ============ 分析摘要工具 ============
+# ============ 细胞类型注释工具 ============
+
+@tool
+def annotate_cell_types(
+    method: str = "auto",
+    model_name: str = "Immune_All_Low",
+    output_dir: Optional[str] = None
+) -> str:
+    """
+    对细胞进行自动类型注释
+
+    使用CellTypist（基于逻辑回归的参考数据集）或基于规则的方法，
+    自动为每个细胞/cluster分配细胞类型标签。
+
+    Args:
+        method: 注释方法 ("auto", "celltypist", "rule")
+                auto: 优先CellTypist，降级为规则
+                celltypist: 强制使用CellTypist
+                rule: 使用基于Marker基因的规则注释
+        model_name: CellTypist模型名称
+                常用: "Immune_All_Low", "Adult_Mouse_Brain"等
+        output_dir: 图表输出目录
+
+    Returns:
+        JSON格式的注释结果
+    """
+    from engine.cell_type import run_cell_type_annotation as run_cell_type_annotation_fn
+
+    adata = get_adata_from_state()
+    if adata is None:
+        return json.dumps({"error": "请先加载数据"}, ensure_ascii=False)
+
+    try:
+        result = run_cell_type_annotation_fn(
+            adata,
+            method=method,
+            model_name=model_name,
+            output_dir=output_dir or "",
+        )
+
+        set_adata_to_state(result["adata"])
+
+        return json.dumps({
+            "status": "success",
+            "summary": result.get("summary", {}),
+            "plot_files": result.get("plot_files", [])
+        }, ensure_ascii=False, indent=2)
+
+    except Exception as e:
+        return json.dumps({"status": "error", "error": str(e)}, ensure_ascii=False)
 
 @tool
 def get_analysis_summary() -> str:
@@ -804,6 +855,8 @@ def get_all_tools() -> List:
         find_markers,
         get_markers,
         plot_markers,
+        # 细胞类型注释
+        annotate_cell_types,
         # 分析摘要
         get_analysis_summary,
     ]
