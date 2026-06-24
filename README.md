@@ -118,36 +118,21 @@ LLM_MODEL=deepseek-chat
 
 ### 运行方式
 
-#### 方式1: Agent智能前端（推荐）
+#### 方式1: Streamlit前端（推荐）
 
-基于LangGraph Agent的完整版本，支持自然语言输入、Skill选择、自动规划和智能问答。
-
-```bash
-python -m streamlit run frontend/app.py
-```
-
-**功能特点**：
-- 🤖 Agent自动规划分析流程
-- 🎯 6个预定义Skill（基础分析、QC、降维聚类等）
-- 💬 自然语言输入（如"帮我做完整分析"）
-- 📊 智能问答（分析完后可追问）
-
-#### 方式2: 手动操作前端
-
-标签页逐步操作版本，适合了解每个分析步骤的细节。
+启动后选择进入Agent智能前端或手动操作前端：
 
 ```bash
-python -m streamlit run frontend/simple_app.py
+python -m streamlit run streamlit_app.py
 ```
 
-**功能特点**：
-- 📑 标签页布局，逐步操作
-- ⚙️ 高级参数可调（侧边栏折叠面板）
-- 🔬 直接调用引擎函数，透明可控
+**🤖 Agent智能前端**：自然语言输入、Skill选择、自动规划、智能问答
 
-然后在浏览器访问 http://localhost:8501
+**🔬 手动操作前端**：标签页逐步操作、高级参数可调、透明可控
 
-#### 方式3: Agent命令行演示
+两个版本共享同一套生信计算引擎，分析结果一致。
+
+#### 方式2: Agent命令行演示
 
 ```bash
 # 自动演示模式
@@ -157,7 +142,7 @@ PYTHONIOENCODING=utf-8 python run_agent_demo.py --auto
 PYTHONIOENCODING=utf-8 python run_agent_demo.py
 ```
 
-#### 方式4: 运行测试
+#### 方式3: 运行测试
 
 ```bash
 # 运行所有测试
