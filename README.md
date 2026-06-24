@@ -118,7 +118,36 @@ LLM_MODEL=deepseek-chat
 
 ### 运行方式
 
-#### 方式1: Agent自动分析（推荐）
+#### 方式1: Agent智能前端（推荐）
+
+基于LangGraph Agent的完整版本，支持自然语言输入、Skill选择、自动规划和智能问答。
+
+```bash
+python -m streamlit run frontend/app.py
+```
+
+**功能特点**：
+- 🤖 Agent自动规划分析流程
+- 🎯 6个预定义Skill（基础分析、QC、降维聚类等）
+- 💬 自然语言输入（如"帮我做完整分析"）
+- 📊 智能问答（分析完后可追问）
+
+#### 方式2: 手动操作前端
+
+标签页逐步操作版本，适合了解每个分析步骤的细节。
+
+```bash
+python -m streamlit run frontend/simple_app.py
+```
+
+**功能特点**：
+- 📑 标签页布局，逐步操作
+- ⚙️ 高级参数可调（侧边栏折叠面板）
+- 🔬 直接调用引擎函数，透明可控
+
+然后在浏览器访问 http://localhost:8501
+
+#### 方式3: Agent命令行演示
 
 ```bash
 # 自动演示模式
@@ -128,15 +157,7 @@ PYTHONIOENCODING=utf-8 python run_agent_demo.py --auto
 PYTHONIOENCODING=utf-8 python run_agent_demo.py
 ```
 
-#### 方式2: Streamlit前端
-
-```bash
-python -m streamlit run frontend/app.py
-```
-
-然后在浏览器访问 http://localhost:8501
-
-#### 方式3: 运行测试
+#### 方式4: 运行测试
 
 ```bash
 # 运行所有测试
@@ -226,8 +247,10 @@ swagent/
 │
 ├── frontend/                        # 前端交互层
 │   ├── __init__.py
-│   ├── app.py                       # Streamlit主应用
+│   ├── app.py                       # Agent智能前端（LangGraph + Skill + 自然语言）
+│   ├── simple_app.py                # 手动操作前端（标签页逐步操作）
 │   ├── components.py                # UI组件
+│   ├── chat.py                      # LLM对话模块
 │   └── utils.py                     # 工具函数
 │
 ├── tests/                           # 测试
@@ -290,7 +313,7 @@ swagent/
 - [x] Tool和Skill系统
 
 ### ✅ Sprint 3: 前端交互与整合
-- [x] Streamlit界面
+- [x] Streamlit界面（Agent智能版 + 手动操作版）
 - [x] 文件上传
 - [x] 结果展示
 - [x] 参数调整
