@@ -1,6 +1,14 @@
 # 快速开始指南
 
-## 1. 环境准备
+## 🚀 在线演示（推荐）
+
+**👉 [点击访问在线演示](https://spatial-transcriptomics-agent-6l5dgpweekkappxkbv4cvd2.streamlit.app/)**
+
+无需安装，直接在浏览器中体验完整功能！
+
+---
+
+## 1. 本地环境准备
 
 ### 安装Python依赖
 
