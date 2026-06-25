@@ -8,7 +8,7 @@
 
 ## 🚀 在线演示
 
-**👉 [点击访问Agent智能前端](https://spatial-transcriptomics-agent-gesd97k4pterpeyl5sutcw.streamlit.app/)**
+**👉 [点击访问Agent智能前端](https://spatial-transcriptomics-agent-3j6qrpqd3xfaibriydaqmw.streamlit.app/)**
 
 无需安装，直接在浏览器中体验完整功能！
 
