@@ -35,11 +35,7 @@ from frontend.chat import explain_analysis, answer_question, create_chat_context
 
 def main():
     """主函数"""
-    st.set_page_config(
-        page_title="空间转录组智能分析平台",
-        page_icon="🧬",
-        layout="wide"
-    )
+    # 注意：set_page_config 已在 streamlit_app.py 中调用，这里不再调用
 
     st.title("🧬 空间转录组智能分析平台")
     st.markdown("基于Scanpy的空间转录组数据分析工具，支持完整的分析流程。")

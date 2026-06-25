@@ -131,6 +131,8 @@ def render_chat_section():
 
 def main():
     """主函数"""
+    # 注意：set_page_config 已在 streamlit_app.py 中调用，这里不再调用
+
     # 初始化会话状态
     initialize_session_state()
 

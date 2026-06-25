@@ -11,10 +11,10 @@ pandas>=2.0.0
 celltypist>=1.6.0
 
 # AI Agent Framework
-langgraph>=0.0.20
-langchain>=0.1.0
-langchain-core>=0.1.0
-langchain-openai>=0.0.5
+langgraph>=0.2.0
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-openai>=0.2.0
 
 # Frontend
 streamlit>=1.28.0
