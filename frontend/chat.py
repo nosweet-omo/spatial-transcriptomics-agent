@@ -16,12 +16,28 @@ def get_llm():
     """获取LLM实例"""
     try:
         from langchain_openai import ChatOpenAI
-        from dotenv import load_dotenv
-        load_dotenv()
 
-        api_key = os.getenv("LLM_API_KEY")
-        base_url = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
-        model = os.getenv("LLM_MODEL", "gpt-4")
+        # 优先从 Streamlit secrets 读取（云端部署）
+        api_key = None
+        base_url = None
+        model = None
+
+        try:
+            import streamlit as st
+            if hasattr(st, 'secrets'):
+                api_key = st.secrets.get("LLM_API_KEY")
+                base_url = st.secrets.get("LLM_BASE_URL", "https://api.openai.com/v1")
+                model = st.secrets.get("LLM_MODEL", "gpt-4")
+        except Exception:
+            pass
+
+        # 降级到环境变量（本地开发）
+        if not api_key:
+            from dotenv import load_dotenv
+            load_dotenv()
+            api_key = os.getenv("LLM_API_KEY")
+            base_url = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
+            model = os.getenv("LLM_MODEL", "gpt-4")
 
         if not api_key:
             return None
